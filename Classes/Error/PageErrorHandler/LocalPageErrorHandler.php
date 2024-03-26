@@ -110,20 +110,7 @@ class LocalPageErrorHandler extends PageContentErrorHandler
     protected function buildDispatcher()
     {
         $requestHandler = GeneralUtility::makeInstance(RequestHandler::class);
-
-        if (VersionNumberUtility::convertVersionNumberToInteger(TYPO3_version) >= 10000000) {
-            $resolver = GeneralUtility::makeInstance(
-                MiddlewareStackResolver::class
-            );
-        } else {
-            $resolver = GeneralUtility::makeInstance(
-                MiddlewareStackResolver::class,
-                GeneralUtility::makeInstance(PackageManager::class),
-                GeneralUtility::makeInstance(DependencyOrderingService::class),
-                GeneralUtility::makeInstance(CacheManager::class)->getCache('cache_core')
-            );
-        }
-
+        $resolver = GeneralUtility::makeInstance(MiddlewareStackResolver::class);
         $middlewares = $resolver->resolve('frontend');
         unset($middlewares['typo3/cms-frontend/maintenance-mode']);
 
