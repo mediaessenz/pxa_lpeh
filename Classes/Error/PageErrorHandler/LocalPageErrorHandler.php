@@ -14,9 +14,13 @@ namespace Pixelant\PxaLpeh\Error\PageErrorHandler;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Controller\ErrorPageController;
+use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryHelper;
+use TYPO3\CMS\Core\Database\Query\Restriction\DeletedRestriction;
+use TYPO3\CMS\Core\Database\Query\Restriction\WorkspaceRestriction;
 use TYPO3\CMS\Core\Error\PageErrorHandler\PageContentErrorHandler;
 use TYPO3\CMS\Core\Exception\SiteNotFoundException;
 use TYPO3\CMS\Core\Http\HtmlResponse;
@@ -176,11 +180,33 @@ class LocalPageErrorHandler extends PageContentErrorHandler
      */
     protected function getLocalizedPageId(int $pageId, int $languageId): ?int
     {
-        $page = BackendUtility::getRecordLocalization(
-            'pages',
-            $pageId,
-            $languageId
-        );
+        $tcaCtrl = $GLOBALS['TCA']['pages']['ctrl'];
+
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
+            ->getQueryBuilderForTable('pages');
+        $queryBuilder->getRestrictions()
+            ->removeAll()
+            ->add(GeneralUtility::makeInstance(DeletedRestriction::class));
+
+        $queryBuilder->select('*')
+            ->from('pages')
+            ->where(
+                $queryBuilder->expr()->eq(
+                    $tcaCtrl['translationSource'] ?? $tcaCtrl['transOrigPointerField'],
+                    $queryBuilder->createNamedParameter($pageId, Connection::PARAM_INT)
+                ),
+                $queryBuilder->expr()->eq(
+                    $tcaCtrl['languageField'],
+                    $queryBuilder->createNamedParameter((int)$languageId, Connection::PARAM_INT)
+                )
+            )
+            ->setMaxResults(1);
+
+        if ($andWhereClause) {
+            $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($andWhereClause));
+        }
+
+        $page = $queryBuilder->executeQuery()->fetchAllAssociative();
 
         if ($page === false || empty($page)) {
             return null;
