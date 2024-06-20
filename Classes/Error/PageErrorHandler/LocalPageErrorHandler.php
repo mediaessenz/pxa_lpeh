@@ -202,10 +202,6 @@ class LocalPageErrorHandler extends PageContentErrorHandler
             )
             ->setMaxResults(1);
 
-        if ($andWhereClause) {
-            $queryBuilder->andWhere(QueryHelper::stripLogicalOperatorPrefix($andWhereClause));
-        }
-
         $page = $queryBuilder->executeQuery()->fetchAllAssociative();
 
         if ($page === false || empty($page)) {
